@@ -17,10 +17,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   auth-service:
     image: auth-service:latest
     environment:
       <<: *common-env
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
@@ -29,6 +36,7 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
+      - redis
 
 volumes:
   postgres_data:

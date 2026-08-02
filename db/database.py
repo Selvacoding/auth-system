@@ -64,9 +64,6 @@ def create_user(username: str, email: str, password: str):
 def get_user_by_email(email: str):
     with Session(engine) as session:
         user = session.query(User).filter(User.email == email).first()
-        print("Email searched:", email)
-        print("Query result:", user)
-
         return user
 
 def get_user_by_id(user_id: int):

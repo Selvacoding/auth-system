@@ -6,6 +6,20 @@ x-common-env: &common-env
   POSTGRES_PORT: ${POSTGRES_PORT}
   POSTGRES_USER: ${POSTGRES_USER}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  RABBITMQ_HOST: ${RABBITMQ_HOST}
+  RABBITMQ_PORT: ${RABBITMQ_PORT}
+  RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+  RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+  MAIN_EXCHANGE: auth.events
+  RETRY_EXCHANGE: auth.retry
+  DLX_EXCHANGE: auth.dlx
+  REGISTRATION_ROUTING_KEY: user.registered
+  RETRY_ROUTING_KEY: user.registered.retry
+  DLQ_ROUTING_KEY: user.registered.failed
+  REGISTRATION_QUEUE: user.registration
+  RETRY_QUEUE: user.registration.retry
+  DLQ_QUEUE: user.registration.dlq
+  RETRY_TTL: 60000
 
 services:
   postgres:
@@ -17,10 +31,43 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq-init:
+    image: auth-service:latest
+    environment:
+      <<: *common-env
+    command: python -m message_broker.topology
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   auth-service:
     image: auth-service:latest
     environment:
       <<: *common-env
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
@@ -29,6 +76,26 @@ services:
       - "8000:8000"
     depends_on:
       - postgres
+      - redis
+
+  outbox-publisher:
+    image: auth-service:latest
+    environment:
+      <<: *common-env
+    command: python -m message_broker.outbox_publisher
+    depends_on:
+      - postgres
+      - rabbitmq
+
+  registration-consumer:
+    image: auth-service:latest
+    environment:
+      <<: *common-env
+    command: python -m message_broker.consumer
+    depends_on:
+      - postgres
+      - rabbitmq
 
 volumes:
   postgres_data:
+  rabbitmq_data:

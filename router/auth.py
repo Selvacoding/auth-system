@@ -5,6 +5,9 @@ from services.auth import AuthService
 from repositories.auth_repository import AuthRepository
 from schemas.auth import LogoutRequest, RefreshTokenRequest, UserRegistrationRequest, UserLoginRequest, ProfileResponse
 from utils.auth import get_current_user
+from utils.rate_limiter import RateLimiter
+
+login_rate_limiter = RateLimiter(times=5, seconds=60, prefix="rate_limit:login")
 
 auth_router = APIRouter()
 
@@ -18,7 +21,7 @@ def get_auth_service(repository: AuthRepository = Depends(get_auth_repository)):
 def register(payload: UserRegistrationRequest, auth_service=Depends(get_auth_service)):
     return auth_service.register(payload.username, payload.email, payload.password)
     
-@auth_router.post("/login")
+@auth_router.post("/login", dependencies=[Depends(login_rate_limiter)])
 def login(payload: UserLoginRequest, auth_service=Depends(get_auth_service)):
     return auth_service.login(payload.email, payload.password)
 

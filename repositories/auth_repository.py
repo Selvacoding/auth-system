@@ -6,7 +6,12 @@ from db.database import (
     create_user,
     save_refresh_token,
     rotate_refresh_token,
-    revoke_refresh_token
+    revoke_refresh_token,
+    create_user_with_outbox,
+    get_unpublished_events,
+    mark_event_as_published,
+    is_event_processed,
+    mark_event_processed
 )
 
 
@@ -32,3 +37,18 @@ class AuthRepository:
 
     def revoke_refresh_token(self, user_id: int, refresh_token: str):
         return revoke_refresh_token(user_id, refresh_token)
+
+    def create_user_with_outbox(self, username: str, email: str, password: str):
+        return create_user_with_outbox(username, email, password)
+
+    def get_unpublished_events(self):
+        return get_unpublished_events()
+
+    def mark_event_as_published(self, event_id: int):
+        return mark_event_as_published(event_id)
+
+    def is_event_processed(self, event_id: int):
+        return is_event_processed(event_id)
+
+    def mark_event_processed(self, event_id: int):
+        return mark_event_processed(event_id)

@@ -4,9 +4,7 @@ from fastapi import HTTPException
 import jwt
 
 import CONFIG
-
 from repositories.auth_repository import AuthRepository
-
 from utils.auth import (
     hash_password,
     verify_password,
@@ -24,7 +22,10 @@ class AuthService:
             raise HTTPException(status_code=409, detail="User with this email already exists.")
         
         hashed_password = hash_password(password)
-        self.repository.create_user(username, email, hashed_password)
+        # user = self.repository.create_user(username, email, hashed_password)
+        
+        # publish_user_registered(user.id, user.username, user.email)
+        self.repository.create_user_with_outbox(username, email, hashed_password)
 
         return {"message": "User created successfully."}
 
